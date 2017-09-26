@@ -1,0 +1,2 @@
+gcc -o exe main.c nrio.c nralloc.c nrarith.c -lm
+
