@@ -17,6 +17,7 @@
 ------------------------*/
 
 #define SEUIL 80
+#define NB_IMAGE_TOTAL 500
 
 /*---------------------- 
 	Structures 
@@ -43,14 +44,27 @@ int** histogrammeCouleurs(rgb8** imgSource, int nrl, int nrh, int ncl, int nch);
 int distanceEucliHistogrammesNDG(int* histoNDG1, int* histoNDG2);
 int* distanceEucliHistogrammesC(int** histoCouleur1, int** histoCouleur2);
 float distanceBatHistogrammes(int* histo1, int* histo2);
-float* getProportionCouleur(int* histoR, int* histoV, int* histoB);
+float* getProportionCouleur(int** histoCouleur);
 
+/*
+	traitement de toutes les images et enregistrement des infos dans DB_Images/results/x.txt
+*/
+void traitement();
 
+/*
+	isColor = 1 si l'image est en couleur, 0 sinon
+*/
+int isColor(rgb8 ** image, long nrh, long nrl, long nch, long ncl);
 
+/*---------------------- 
+	MAIN 
+------------------------*/
 int main(void)
 {
 
 	printf("Debut programme\n");
+
+	traitement();
 
 	//déclaration image
 	rgb8 **I;
@@ -58,7 +72,7 @@ int main(void)
 
 	//binarisation d'une image
 	I = LoadPPM_rgb8matrix("Images/arbre1.ppm",&nrl,&nrh,&ncl,&nch);	
-	byte **IBinarisee = c(I,nrl,nrh,ncl,nch);
+	byte **IBinarisee = couleursToNDG(I,nrl,nrh,ncl,nch);
 	SavePGM_bmatrix(IBinarisee,nrl,nrh,ncl,nch,"Images/binarisees/arbre1.pgm"); 
 	free_bmatrix(IBinarisee,nrl,nrh,ncl,nch);
 	free_rgb8matrix(I,nrl,nrh,ncl,nch);
@@ -66,6 +80,96 @@ int main(void)
 	printf("Fin du programme\n");
 	return 0;
 }
+
+void traitement()
+{
+	int cmp;
+
+	for( cmp=0; cmp<=(NB_IMAGE_TOTAL-1); cmp++)
+	{
+		//Initialisation des fichiers images à lire
+		rgb8 **Image;
+		int i,j;
+		char nomImage[255];
+		long nrh,nrl,nch,ncl;
+		char nomImageResultat[255];
+		char nameF[255];
+		int mIsColor;
+		int histo_r[256], histo_g[256], histo_b[256];
+		float valMoyNormeGradient;
+
+		sprintf(nomImageResultat, "DB_Images/results/%d.txt", cmp);
+		sprintf(nomImage, "DB_Images/ppm/%d.ppm", cmp);
+
+		//Lecture Image
+		Image = LoadPPM_rgb8matrix(nomImage, &nrl,&nrh,&ncl,&nch);
+
+		//Création du chemin/nom du fichier txt
+		i = 0;
+		while (nomImageResultat[i] != '.')
+		{
+			nameF[i] = nomImageResultat[i];
+			i++;
+		}
+		nameF[i] = '.'; nameF[i+1] = 't'; nameF[i+2] = 'x'; nameF[i+3] = 't'; nameF[i+4] = '\0';
+
+		FILE* fichier = NULL;
+    	fichier = fopen(nameF, "w+");
+
+		printf("Traitement de %s\n", nomImage);
+
+		/*DEBUT traitement image -> fichier*/
+
+		mIsColor = isColor(Image, nrh, nrl, nch, ncl);	
+		//histo_r = funct_histoR;
+		//histo_g = funct_histoR;
+		//histo_b = funct_histoR;
+		//valMoyNormeGradient = 
+
+		fprintf(fichier, "name = %s\n", nomImage);
+		fprintf(fichier, "isColor = %d\n\n", mIsColor);
+		fprintf(fichier, "valMoyNormeGradient = %f\n", valMoyNormeGradient);
+
+		fprintf(fichier, "histo_r :");
+		for (j=0; j<256; j++)
+			fprintf(fichier, " %d", histo_r[i]);
+
+		fprintf(fichier, "\nhisto_g :");
+		for (j=0; j<256; j++)
+			fprintf(fichier, " %d", histo_g[i]);
+
+		fprintf(fichier, "\nhisto_b");
+		for (j=0; j<256; j++)
+			fprintf(fichier, " %d", histo_b[i]);
+
+		/*FIN traitement image -> fichier*/
+		
+		//Free
+		fclose(fichier);
+		free_rgb8matrix(Image, nrl,nrh,ncl,nch);
+	}
+}
+
+int isColor(rgb8 ** image, long nrh, long nrl, long nch, long ncl)
+{
+	int i, j;
+	for(i=0; i<nrh; i++)
+	{
+		for(j=0; j<nch; j++)
+		{
+			if ((image[i][j].r != image[i][j].g) && (image[i][j].r != image[i][j].b))
+				return 0;
+			
+			//printf("%d %d %d, %d\n", image[i][j].r, image[i][j].g, image[i][j].b, result);
+		}
+	}
+
+	return 1;	
+}
+
+/**
+Image Processing Functions
+**/
 
 byte** couleursToNDG(rgb8** imgSource, int nrl, int nrh, int ncl, int nch){
 	int i,j;
@@ -310,6 +414,7 @@ float* getProportionCouleur(int** histoCouleur) {
 	float* propCouleurs = malloc(sizeof(float)*3);
 	int i=0;
 	for(i=0;i<256;i++){
+	}
 		
 }
 
