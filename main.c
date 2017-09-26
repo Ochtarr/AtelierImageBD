@@ -54,7 +54,7 @@ void traitement();
 /*
 	isColor = 1 si l'image est en couleur, 0 sinon
 */
-int isColor(rgb8 ** image, long nrh, long nrl, long nch, long ncl);
+int isColor(rgb8 ** image, int nrl, int nrh, int ncl, int nch);
 
 /*---------------------- 
 	MAIN 
@@ -65,17 +65,6 @@ int main(void)
 	printf("Debut programme\n");
 
 	traitement();
-
-	//déclaration image
-	rgb8 **I;
-	long nrh,nrl,nch,ncl;
-
-	//binarisation d'une image
-	I = LoadPPM_rgb8matrix("Images/arbre1.ppm",&nrl,&nrh,&ncl,&nch);	
-	byte **IBinarisee = couleursToNDG(I,nrl,nrh,ncl,nch);
-	SavePGM_bmatrix(IBinarisee,nrl,nrh,ncl,nch,"Images/binarisees/arbre1.pgm"); 
-	free_bmatrix(IBinarisee,nrl,nrh,ncl,nch);
-	free_rgb8matrix(I,nrl,nrh,ncl,nch);
 
 	printf("Fin du programme\n");
 	return 0;
@@ -120,37 +109,52 @@ void traitement()
 
 		/*DEBUT traitement image -> fichier*/
 
-		mIsColor = isColor(Image, nrh, nrl, nch, ncl);	
-		//histo_r = funct_histoR;
-		//histo_g = funct_histoR;
-		//histo_b = funct_histoR;
-		//valMoyNormeGradient = 
-
+		printf("*\n");
+		mIsColor = isColor(Image, nrl, nrh, ncl, nch);	
+		printf("*\n");
+		byte **ImageNDG = couleursToNDG(Image, nrl, nrh, ncl, nch);
+		printf("*\n");
+		int** histoCouleurs = histogrammeCouleurs(Image, nrl, nrh, ncl, nch);
+		printf("*\n");
+		int** gradH = gradientH(ImageNDG, nrl, nrh, ncl, nch);
+		printf("*\n");
+		int** gradV = gradientV(ImageNDG, nrl, nrh, ncl, nch);
+		printf("*\n");
+		int** normeGrad = normeGradient(gradH, gradV, nrl, nrh, ncl, nch);
+		printf("*\n");
+		valMoyNormeGradient = moyNormeGradient( normeGrad, nrh, nrl, nch, ncl);
+		printf("*\n");
+		
 		fprintf(fichier, "name = %s\n", nomImage);
 		fprintf(fichier, "isColor = %d\n\n", mIsColor);
 		fprintf(fichier, "valMoyNormeGradient = %f\n", valMoyNormeGradient);
 
 		fprintf(fichier, "histo_r :");
 		for (j=0; j<256; j++)
-			fprintf(fichier, " %d", histo_r[i]);
+			fprintf(fichier, " %d", histoCouleurs[0][i]);
 
 		fprintf(fichier, "\nhisto_g :");
 		for (j=0; j<256; j++)
-			fprintf(fichier, " %d", histo_g[i]);
+			fprintf(fichier, " %d", histoCouleurs[1][i]);
 
 		fprintf(fichier, "\nhisto_b");
 		for (j=0; j<256; j++)
-			fprintf(fichier, " %d", histo_b[i]);
+			fprintf(fichier, " %d", histoCouleurs[2][i]);
 
 		/*FIN traitement image -> fichier*/
 		
 		//Free
 		fclose(fichier);
+		free_imatrix(histoCouleurs, nrl,nrh,ncl,nch);
+		free_imatrix(gradH, nrl,nrh,ncl,nch);
+		free_imatrix(gradV, nrl,nrh,ncl,nch);
+		free_imatrix(normeGrad, nrl,nrh,ncl,nch);
+		free_bmatrix(ImageNDG, nrl,nrh,ncl,nch);
 		free_rgb8matrix(Image, nrl,nrh,ncl,nch);
 	}
 }
 
-int isColor(rgb8 ** image, long nrh, long nrl, long nch, long ncl)
+int isColor(rgb8 ** image, int nrl, int nrh, int ncl, int nch)
 {
 	int i, j;
 	for(i=0; i<nrh; i++)
@@ -166,10 +170,6 @@ int isColor(rgb8 ** image, long nrh, long nrl, long nch, long ncl)
 
 	return 1;	
 }
-
-/**
-Image Processing Functions
-**/
 
 byte** couleursToNDG(rgb8** imgSource, int nrl, int nrh, int ncl, int nch){
 	int i,j;
@@ -229,12 +229,15 @@ byte** filtreMoyenneur(byte** imgSource, int nrl, int nrh, int ncl, int nch){
 int** gradientH(byte** imgSource, int nrl, int nrh, int ncl, int nch)
 {
 	int i,j;
+	printf("gh1\n");
 	int **imgReturned = imatrix(nrl,nrh,ncl,nch);
+	printf("gh2\n");
 
 	for (i = nrl; i <= nrh; i++)
 	{
 		for (j = ncl; j <= nch; j++)
 		{
+			printf("dbg : i:%d / j:%d", i, j);
 			//coin HG
 			if( i == 0 && j == 0)
 			{
@@ -357,7 +360,7 @@ byte** detectionContours(int** normeG, int seuil, int nrl, int nrh, int ncl, int
 }
 
 int* histogrammeNDG(byte** imgSource, int nrl, int nrh, int ncl, int nch) {
-	int* histoNDG = (int) malloc(sizeof(int)*256);
+	int* histoNDG = malloc(sizeof(int)*256);
 	int i,j;
 	for (i = nrl; i <= nrh; i++)
 	{
@@ -370,10 +373,10 @@ int* histogrammeNDG(byte** imgSource, int nrl, int nrh, int ncl, int nch) {
 }
 
 int** histogrammeCouleurs(rgb8** imgSource, int nrl, int nrh, int ncl, int nch) {
-	int** histoCouleur = (int) malloc(sizeof(int*)*3);
-	histoCouleur[0] = (int) malloc(sizeof(int)*256);
-	histoCouleur[1] = (int) malloc(sizeof(int)*256);
-	histoCouleur[2] = (int) malloc(sizeof(int)*256);
+	int** histoCouleur = malloc(sizeof(int*)*3);
+	histoCouleur[0] = malloc(sizeof(int)*256);
+	histoCouleur[1] = malloc(sizeof(int)*256);
+	histoCouleur[2] = malloc(sizeof(int)*256);
 
 	int i,j;
 	for (i = nrl; i <= nrh; i++)
@@ -415,6 +418,5 @@ float* getProportionCouleur(int** histoCouleur) {
 	int i=0;
 	for(i=0;i<256;i++){
 	}
-		
+	return propCouleurs;
 }
-
