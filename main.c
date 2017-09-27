@@ -128,7 +128,7 @@ void traitement()
 		for (j=0; j<256; j++)
 			fprintf(fichier, " %d", histoCouleurs[1][i]);
 
-		fprintf(fichier, "\nhisto_b");
+		fprintf(fichier, "\nhisto_b :");
 		for (j=0; j<256; j++)
 			fprintf(fichier, " %d", histoCouleurs[2][i]);
 
