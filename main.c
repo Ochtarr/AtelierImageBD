@@ -36,14 +36,15 @@ byte** couleursToNDG(rgb8** imgSource, int nrl, int nrh, int ncl, int nch);
 byte** filtreMoyenneur(byte** imgSource, int nrl, int nrh, int ncl, int nch);
 int** gradientH(byte** imgSource, int nrl, int nrh, int ncl, int nch);
 int** gradientV(byte** imgSource, int nrl, int nrh, int ncl, int nch);
-int** normeGradient(int** gradientH, int** gradientV, int nrl, int nrh, int ncl, int nch);
-float moyNormeGradient(int** gradient, int nrl, int nrh, int ncl, int nch);
-byte** detectionContours(int** normeG, int seuil, int nrl, int nrh, int ncl, int nch);
+byte** normeGradient(int** gradientH, int** gradientV, int nrl, int nrh, int ncl, int nch);
+float moyNormeGradient(byte** gradient, int nrl, int nrh, int ncl, int nch);
+byte** detectionContours(byte** normeG, int seuil, int nrl, int nrh, int ncl, int nch);
 int* histogrammeNDG(byte** imgSource, int nrl, int nrh, int ncl, int nch);
 int** histogrammeCouleurs(rgb8** imgSource, int nrl, int nrh, int ncl, int nch);
 int distanceEucliHistogrammesNDG(int* histoNDG1, int* histoNDG2);
 int* distanceEucliHistogrammesC(int** histoCouleur1, int** histoCouleur2);
 float distanceBatHistogrammes(int* histo1, int* histo2);
+float distanceBatHistogrammesC(int** histo1, int** histo2);
 float* getProportionCouleur(int** histoCouleur);
 
 /*
@@ -105,25 +106,15 @@ void traitement()
 		FILE* fichier = NULL;
     	fichier = fopen(nameF, "w+");
 
-		printf("Traitement de %s\n", nomImage);
-
 		/*DEBUT traitement image -> fichier*/
 
-		printf("*\n");
-		mIsColor = isColor(Image, nrl, nrh, ncl, nch);	
-		printf("*\n");
+		mIsColor = isColor(Image, nrl, nrh, ncl, nch);
 		byte **ImageNDG = couleursToNDG(Image, nrl, nrh, ncl, nch);
-		printf("*\n");
 		int** histoCouleurs = histogrammeCouleurs(Image, nrl, nrh, ncl, nch);
-		printf("*\n");
 		int** gradH = gradientH(ImageNDG, nrl, nrh, ncl, nch);
-		printf("*\n");
 		int** gradV = gradientV(ImageNDG, nrl, nrh, ncl, nch);
-		printf("*\n");
-		int** normeGrad = normeGradient(gradH, gradV, nrl, nrh, ncl, nch);
-		printf("*\n");
-		valMoyNormeGradient = moyNormeGradient( normeGrad, nrh, nrl, nch, ncl);
-		printf("*\n");
+		byte** normeGrad = normeGradient(gradH, gradV, nrl, nrh, ncl, nch);
+		valMoyNormeGradient = moyNormeGradient( normeGrad, nrl, nrh, ncl, nch);
 		
 		fprintf(fichier, "name = %s\n", nomImage);
 		fprintf(fichier, "isColor = %d\n\n", mIsColor);
@@ -148,7 +139,7 @@ void traitement()
 		free_imatrix(histoCouleurs, nrl,nrh,ncl,nch);
 		free_imatrix(gradH, nrl,nrh,ncl,nch);
 		free_imatrix(gradV, nrl,nrh,ncl,nch);
-		free_imatrix(normeGrad, nrl,nrh,ncl,nch);
+		free_bmatrix(normeGrad, nrl,nrh,ncl,nch);
 		free_bmatrix(ImageNDG, nrl,nrh,ncl,nch);
 		free_rgb8matrix(Image, nrl,nrh,ncl,nch);
 	}
@@ -195,32 +186,14 @@ byte** filtreMoyenneur(byte** imgSource, int nrl, int nrh, int ncl, int nch){
 		for (j = ncl; j <= nch; j++)
 		{
 			//coin HG
-			if( i == 0 && j == 0)
+			if( i == nrl || i == nrh || j == ncl || j == nch)
 			{
-				imgReturned[i][j] += (4*imgSource[i][j]+2*imgSource[i+1][j]+2*imgSource[i][j+1]+imgSource[i+1][j+1])/9;		
+				imgReturned[i][j] = imgSource[i][j];
 			}
-
-			//coin HD
-			if( i==nrh && j==0)
+			else
 			{
-				imgReturned[i][j] += (4*imgSource[i][j]+2*imgSource[i-1][j]+2*imgSource[i][j+1]+imgSource[i-1][j+1])/9;
+				imgReturned[i][j] = ( imgSource[i-1][j-1]+imgSource[i][j-1]+imgSource[i+1][j-1]+imgSource[i-1][j]+imgSource[i][j]+imgSource[i+1][j]+imgSource[i-1][j+1]+imgSource[i][j+1]+imgSource[i+1][j+1] )/9;
 			}
-			
-			//coin BG
-			if( i==0 && j==nch)
-			{
-				imgReturned[i][j] += (4*imgSource[i][j]+2*imgSource[i+1][j]+2*imgSource[i][j-1]+imgSource[i+1][j-1])/9;	
-			}
-			//coin BD
-			if( i==nrh && j==nch)
-			{
-				imgReturned[i][j] += (4*imgSource[i][j]+2*imgSource[i-1][j]+2*imgSource[i][j-1]+imgSource[i-1][j-1])/9;	
-			}
-
-			//cas classique
-			imgReturned[i][j] += ( imgSource[i-1][j-1]+imgSource[i][j-1]+imgSource[i+1][j-1]+imgSource[i-1][j]+imgSource[i][j]+imgSource[i+1][j]+imgSource[i-1][j+1]+imgSource[i][j+1]+imgSource[i+1][j+1] )/9;
-
-			
 		}
 	}
 	return imgReturned;
@@ -229,42 +202,13 @@ byte** filtreMoyenneur(byte** imgSource, int nrl, int nrh, int ncl, int nch){
 int** gradientH(byte** imgSource, int nrl, int nrh, int ncl, int nch)
 {
 	int i,j;
-	printf("gh1\n");
 	int **imgReturned = imatrix(nrl,nrh,ncl,nch);
-	printf("gh2\n");
 
-	for (i = nrl; i <= nrh; i++)
+	for (i = nrl+1; i < nrh; i++)
 	{
-		for (j = ncl; j <= nch; j++)
+		for (j = ncl+1; j < nch; j++)
 		{
-			printf("dbg : i:%d / j:%d", i, j);
-			//coin HG
-			if( i == 0 && j == 0)
-			{
-				imgReturned[i][j] += (-3*imgSource[i][j]+3*imgSource[i+1][j]+(-1*imgSource[i][j+1])+imgSource[i+1][j+1])/4;		
-			}
-
-			//coin HD
-			if( i==nrh && j==0)
-			{
-				imgReturned[i][j] += (3*imgSource[i][j]+(-3)*imgSource[i-1][j]+imgSource[i][j+1]+(-imgSource[i-1][j+1]))/4;
-			}
-			
-			//coin BG
-			if( i==0 && j==nch)
-			{
-				imgReturned[i][j] += (-3*imgSource[i][j]+3*imgSource[i+1][j]-imgSource[i][j-1]+imgSource[i+1][j-1])/4;	
-			}
-			//coin BD
-			if( i==nrh && j==nch)
-			{
-				imgReturned[i][j] += (3*imgSource[i][j]-3*imgSource[i-1][j]+imgSource[i][j-1]-imgSource[i-1][j-1])/4;	
-			}
-
-			//cas classique
-			imgReturned[i][j] += ( -imgSource[i-1][j-1]+imgSource[i+1][j-1]-2*imgSource[i-1][j]+2*imgSource[i+1][j]-imgSource[i-1][j+1]+imgSource[i+1][j+1] )/4;
-
-			
+			imgReturned[i][j] = ( -imgSource[i-1][j-1]-2*imgSource[i-1][j]-imgSource[i-1][j+1]+imgSource[i+1][j-1]+2*imgSource[i+1][j]+imgSource[i+1][j+1] )/4;
 		}
 	}
 	return imgReturned;
@@ -277,72 +221,59 @@ int** gradientV(byte** imgSource, int nrl, int nrh, int ncl, int nch)
 	int i,j;
 	int **imgReturned = imatrix(nrl,nrh,ncl,nch);
 
-	for (i = nrl; i <= nrh; i++)
+	for (i = nrl+1; i < nrh; i++)
 	{
-		for (j = ncl; j <= nch; j++)
+		for (j = ncl+1; j < nch; j++)
 		{
-			//coin HG
-			if( i == 0 && j == 0)
-			{
-				imgReturned[i][j] += (-3*imgSource[i][j]-imgSource[i+1][j]+3*imgSource[i][j+1]+imgSource[i+1][j+1])/4;		
-			}
-
-			//coin HD
-			if( i==nrh && j==0)
-			{
-				imgReturned[i][j] += (-3*imgSource[i][j]-imgSource[i-1][j]+3*imgSource[i][j+1]+imgSource[i-1][j+1])/4;
-			}
-			
-			//coin BG
-			if( i==0 && j==nch)
-			{
-				imgReturned[i][j] += (3*imgSource[i][j]+imgSource[i+1][j]-3*imgSource[i][j-1]-imgSource[i+1][j-1])/4;	
-			}
-			//coin BD
-			if( i==nrh && j==nch)
-			{
-				imgReturned[i][j] += (3*imgSource[i][j]+imgSource[i-1][j]-3*imgSource[i][j-1]-imgSource[i-1][j-1])/4;	
-			}
-
-			//cas classique
-			imgReturned[i][j] += ( -imgSource[i-1][j-1]-2*imgSource[i][j-1]-imgSource[i+1][j-1]+imgSource[i-1][j+1]+2*imgSource[i][j+1]+imgSource[i+1][j+1] )/4;
-
+			imgReturned[i][j] = ( -imgSource[i-1][j-1]+imgSource[i-1][j+1]-2*imgSource[i][j-1]+2*imgSource[i][j+1]-imgSource[i+1][j-1]+imgSource[i+1][j+1] )/4;
 		}
 	}
 	return imgReturned;
 }
 
 
-int** normeGradient(int** gradientH, int** gradientV, int nrl, int nrh, int ncl, int nch) {
+byte** normeGradient(int** gradientH, int** gradientV, int nrl, int nrh, int ncl, int nch) {
 	int i,j;
 	int **normeG = imatrix(nrl,nrh,ncl,nch);
+	float max = 0;
+	byte **normeN = bmatrix(nrl,nrh,ncl,nch);
 
 	for (i = nrl; i <= nrh; i++)
 	{
 		for (j = ncl; j <= nch; j++)
 		{
 			normeG[i][j] = floor(sqrt(pow(gradientH[i][j],2)+pow(gradientV[i][j],2)));
+			if(normeG[i][j] > max)
+				max = normeG[i][j];
 		}
 	}
 
-	return normeG;
+	for (i = nrl; i <= nrh; i++)
+	{
+		for (j = ncl; j <= nch; j++)
+		{
+			normeN[i][j] = floor(normeG[i][j]/max * 255);
+		}
+	}
+
+	return normeN;
 }
 
-float moyNormeGradient(int** gradient, int nrl, int nrh, int ncl, int nch) {
+float moyNormeGradient(byte** gradient, int nrl, int nrh, int ncl, int nch) {
 	float nbElts = 0.0, somme =0.0;
 	int i,j;
 	for (i = nrl; i <= nrh; i++)
 	{
 		for (j = ncl; j <= nch; j++)
 		{
-			somme += gradient[i][j];
+			somme += (int) gradient[i][j];
 			nbElts++;	
 		}
 	}
 	return somme / nbElts;
 }
 
-byte** detectionContours(int** normeG, int seuil, int nrl, int nrh, int ncl, int nch) {
+byte** detectionContours(byte** normeG, int seuil, int nrl, int nrh, int ncl, int nch) {
 	int i,j;
 	byte **imgReturned = bmatrix(nrl,nrh,ncl,nch);
 
@@ -362,6 +293,12 @@ byte** detectionContours(int** normeG, int seuil, int nrl, int nrh, int ncl, int
 int* histogrammeNDG(byte** imgSource, int nrl, int nrh, int ncl, int nch) {
 	int* histoNDG = malloc(sizeof(int)*256);
 	int i,j;
+
+	for(i=0; i<256; i++)
+	{
+		histoNDG[i] = 0;
+	}
+
 	for (i = nrl; i <= nrh; i++)
 	{
 		for (j = ncl; j <= nch; j++)
@@ -379,6 +316,14 @@ int** histogrammeCouleurs(rgb8** imgSource, int nrl, int nrh, int ncl, int nch) 
 	histoCouleur[2] = malloc(sizeof(int)*256);
 
 	int i,j;
+
+	for(i=0; i<256; i++)
+	{
+		histoCouleur[0][i] = 0;
+		histoCouleur[1][i] = 0;
+		histoCouleur[2][i] = 0;
+	}
+
 	for (i = nrl; i <= nrh; i++)
 	{
 		for (j = ncl; j <= nch; j++)
@@ -404,6 +349,11 @@ int distanceEucliHistogrammesNDG(int* histoNDG1, int* histoNDG2) {
 int* distanceEucliHistogrammesC(int** histoCouleur1, int** histoCouleur2) {
 	int i;
 	int* sommeDiff = (int*) malloc(3*sizeof(int));
+
+	sommeDiff[0] = 0;
+	sommeDiff[1] = 0;
+	sommeDiff[2] = 0;
+
 	for(i=0;i<256;i++)
 	{
 		sommeDiff[0] += abs(histoCouleur1[0][i]-histoCouleur2[0][i]);
@@ -415,8 +365,63 @@ int* distanceEucliHistogrammesC(int** histoCouleur1, int** histoCouleur2) {
 
 float* getProportionCouleur(int** histoCouleur) {
 	float* propCouleurs = malloc(sizeof(float)*3);
+	int pixelNbr = 0;
 	int i=0;
+	
+	propCouleurs[0] = 0;
+	propCouleurs[1] = 0;
+	propCouleurs[2] = 0;
+
 	for(i=0;i<256;i++){
+		propCouleurs[0] += histoCouleur[0][i]*i;
+		propCouleurs[1] += histoCouleur[1][i]*i;
+		propCouleurs[2] += histoCouleur[2][i]*i;
+		pixelNbr += histoCouleur[0][i];
 	}
+
+	propCouleurs[0] /= pixelNbr;
+	propCouleurs[1] /= pixelNbr;
+	propCouleurs[2] /= pixelNbr;
+
 	return propCouleurs;
+}
+
+
+float distanceBatHistogrammes(int* histo1, int* histo2)
+{
+	float h1[256], h2[256];
+	int pixelNbrH1 = 0, pixelNbrH2 = 0;
+	float score = 0;
+	int i;
+
+	for(i = 0; i < 256; i++)
+	{
+		h1[i] = histo1[i];
+		h2[i] = histo2[i];
+
+		pixelNbrH1 += histo1[i];
+		pixelNbrH2 += histo2[i];
+	}
+
+	for(i = 0; i < 256; i++)
+	{
+		h1[i] /= pixelNbrH1;
+		h2[i] /= pixelNbrH2;
+	}
+
+	for(i = 0;i < 256; i++)
+	{
+		score += sqrt(h1[i]*h2[i]);
+	}
+
+	return -log(score);
+}
+
+float distanceBatHistogrammesC(int** histo1, int** histo2)
+{
+	float score;
+
+	score = ( distanceBatHistogrammes(histo1[0],histo2[0]) + distanceBatHistogrammes(histo1[1],histo2[1]) + distanceBatHistogrammes(histo1[2],histo2[2]) )/ 3;
+
+	return score;
 }
