@@ -46,7 +46,7 @@ int* distanceEucliHistogrammesC(int** histoCouleur1, int** histoCouleur2);
 float distanceBatHistogrammes(int* histo1, int* histo2);
 float distanceBatHistogrammesC(int** histo1, int** histo2);
 float* getProportionCouleur(int** histoCouleur);
-int getNbPixelsContours(byte** ImageContours, int nrl, int nrh, int ncl, int nch);
+float getNbPixelsContours(byte** ImageContours, int nrl, int nrh, int ncl, int nch);
 
 /*
 	traitement de toutes les images et enregistrement des infos dans DB_Images/results/x.txt
@@ -74,6 +74,7 @@ int main(void)
 
 void traitement()
 {
+	
 	int cmp;
 
 	FILE* fichierP = NULL;
@@ -109,11 +110,11 @@ void traitement()
 		nameF[i] = '.'; nameF[i+1] = 't'; nameF[i+2] = 'x'; nameF[i+3] = 't'; nameF[i+4] = '\0';
 
 		FILE* fichier = NULL;
-    	fichier = fopen(nameF, "w+");
+    		fichier = fopen(nameF, "w+");
 
 		/*DEBUT traitement image -> fichier*/
-
-		mIsColor = isColor(Image, nrl, nrh, ncl, nch);
+		
+		mIsColor = isColor(Image, nrl, nrh, ncl, nch);		
 		byte **ImageNDG = couleursToNDG(Image, nrl, nrh, ncl, nch);
 		int** histoCouleurs = histogrammeCouleurs(Image, nrl, nrh, ncl, nch);
 		int** gradH = gradientH(ImageNDG, nrl, nrh, ncl, nch);
@@ -121,21 +122,20 @@ void traitement()
 		byte** normeGrad = normeGradient(gradH, gradV, nrl, nrh, ncl, nch);
 		valMoyNormeGradient = moyNormeGradient( normeGrad, nrl, nrh, ncl, nch);
 		byte** imageContours = 	detectionContours(normeGrad, SEUIL, nrl, nrh, ncl, nch);
-		int pixelNb = getNbPixelsContours(imageContours, nrl, nrh, ncl, nch);
+		float pixelNb = getNbPixelsContours(imageContours, nrl, nrh, ncl, nch);
 		propColor = getProportionCouleur(histoCouleurs);
-
 
 		fprintf(fichier, "name : %s\n", nomImage);
 		fprintf(fichier, "isColor : %d\n\n", mIsColor);
 		fprintf(fichier, "valMoyNormeGradient : %f\n", valMoyNormeGradient);
-		fprintf(fichier, "NbContour : %d\n", pixelNb);
+		fprintf(fichier, "NbContour : %f\n", pixelNb);
 		fprintf(fichier, "%s%f%s", "tauxR := ", propColor[0], ";\n");
 		fprintf(fichier, "%s%f%s", "tauxG := ", propColor[1], ";\n");
 		fprintf(fichier, "%s%f%s", "tauxB := ", propColor[2], ";\n");
 
 		fprintf(fichierP, "%s%d%s", "mIsColor := ", mIsColor, ";\n");
 		fprintf(fichierP, "%s%f%s", "mMoy_norme_grad := ", valMoyNormeGradient, ";\n");
-		fprintf(fichierP, "%s%d%s", "mNb_pixels_contour := ", pixelNb, ";\n");
+		fprintf(fichierP, "%s%f%s", "mNb_pixels_contour := ", pixelNb, ";\n");
 		fprintf(fichierP, "%s%f%s", "tauxR := ", propColor[0], ";\n");
 		fprintf(fichierP, "%s%f%s", "tauxG := ", propColor[1], ";\n");
 		fprintf(fichierP, "%s%f%s", "tauxB := ", propColor[2], ";\n");
@@ -466,18 +466,21 @@ float distanceBatHistogrammesC(int** histo1, int** histo2)
 	return score;
 }
 
-int getNbPixelsContours(byte** ImageContours, int nrl, int nrh, int ncl, int nch)
+float getNbPixelsContours(byte** ImageContours, int nrl, int nrh, int ncl, int nch)
 {
     int i,j;
-    int sommePixels = 0;
+    float sommePixels = 0.0;
+    float nbPixelsImage = 0.0;
     for(i=nrl; i<=nrh; i++)
     {
         for(j=ncl; j<=nch; j++)
         {
+	    nbPixelsImage++;
             if(ImageContours[i][j] == 255){
                 sommePixels++;
             }
         }
     }
-    return sommePixels;
+printf("%f\n", sommePixels / nbPixelsImage); 
+    return sommePixels / nbPixelsImage;
 }
